@@ -21,7 +21,7 @@ if 'SFMTA_DEBUG' in os.environ and os.environ['SFMTA_DEBUG'] == '1':
 else:
 	SFMTA_URL = 'https://services.sfmta.com/shuttle/api'
 
-s3 = boto3.resource('s3')
+s3 = boto3.resource('s3', region_name = 'us-west-2')
 
 ##############################
 # Config variables
