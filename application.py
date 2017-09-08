@@ -31,7 +31,7 @@ VEHICLE_SHEETS_JSON_URL = 'https://spreadsheets.google.com/feeds/list/' + os.env
 SAMSARA_LOCATIONS_URL = 'https://api.samsara.com/v1/fleet/locations?access_token=' + os.environ['SAMSARA_SFMTA_API_TOKEN']
 FREQUENCY = 5 # SFMTA requires GPS ping frequency of once every 5 seconds
 DISTANCE_THRESHOLD = 50 # Consider vehicle is at a SFMTA Allowed Stop if less than 50 meters away from it
-SAMSARA_SFMTA_S3 = 'samsara-sfmta-2'
+SAMSARA_SFMTA_S3 = os.environ['SAMSARA_SFMTA_S3_BUCKET']
 
 ##############################
 # Global variables
