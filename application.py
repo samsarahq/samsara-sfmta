@@ -31,6 +31,7 @@ VEHICLE_SHEETS_JSON_URL = 'https://spreadsheets.google.com/feeds/list/' + os.env
 SAMSARA_LOCATIONS_URL = 'https://api.samsara.com/v1/fleet/locations?access_token=' + os.environ['SAMSARA_SFMTA_API_TOKEN']
 FREQUENCY = 5 # SFMTA requires GPS ping frequency of once every 5 seconds
 DISTANCE_THRESHOLD = 50 # Consider vehicle is at a SFMTA Allowed Stop if less than 50 meters away from it
+SAMSARA_SFMTA_S3 = 'samsara-sfmta-2'
 
 ##############################
 # Global variables
@@ -100,7 +101,7 @@ def get_vehicle_details(url):
 def get_sfmta_stops():
 	headers = {'accept': 'application/json', 'content-type': 'application/json'}
 	r = requests.get(SFMTA_URL+'/AllowedStops', headers = headers)
-	s3.Object('samsara-sfmta','allowed_stops.json').put(Body=r.text)
+	s3.Object(SAMSARA_SFMTA_S3,'allowed_stops.json').put(Body=r.text)
 	return "SFMTA Allowed Stops updated"
 
 #Healthcheck URL for AWS
@@ -153,7 +154,7 @@ def push_vehicle_data_star(vehicle_data):
 
 # Check if a location is near one of the SFMTA AllowedStops - if yes, return the stop ID, else return 9999
 def find_stop_id(stop_lat, stop_long):
-	allowed_stops_object = s3.Object('samsara-sfmta','allowed_stops.json')
+	allowed_stops_object = s3.Object(SAMSARA_SFMTA_S3,'allowed_stops.json')
 	allowed_stops_json = json.loads(allowed_stops_object.get()['Body'].read().decode('utf-8'))
 
 	closest_stop_id = 9999
