@@ -2,6 +2,7 @@
 .DS_Store
 *~
 
+application.py3
 .sfmta-env
 
 # Elastic Beanstalk Files
