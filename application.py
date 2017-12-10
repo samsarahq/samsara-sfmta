@@ -325,6 +325,42 @@ def build_sfmta_payload(vehicle_id, current_time):
 
 
 
+# build payload, convert to json, then push to sfmta api
+def push_vehicle_data(vehicle_id, current_time):
+	sfmta_payload = build_sfmta_payload(vehicle_id, current_time)
+	sfmta_payload_json = json.dumps(sfmta_payload)
+
+	sfmta_telemetry_url = SFMTA_URL + '/Telemetry/'
+
+	headers = {'content-type': 'application/json'}
+
+	local_retries = MAX_RETRIES
+	while local_retries > 0:
+		try:
+			r = requests.post(sfmta_telemetry_url, data = sfmta_payload_json, auth= (os.environ['SFMTA_USERNAME'], os.environ['SFMTA_PASSWORD']), headers = headers )
+			r.raise_for_status()
+			return "Success"
+		except Exception as e:
+			logging.warning('Error pushing data to SFMTA API -- ' + str(e))
+			logging.warning('Retrying request, %s retries remaining', local_retries)
+			local_retries -= 1
+	# confirm that we have used MAX_RETRIES attempts
+	if local_retries == 0:
+		current_error_time = time.time()
+		global LAST_ERROR_EMAIL_TIME
+
+		# send error email if more than 2 hours has passed since last error email
+		if (current_error_time - LAST_ERROR_EMAIL_TIME) > ERROR_EMAIL_DELAY:
+			email_body = 'There was an error pushing data to SFMTA API - please check logs\n\n'
+			email_subject = 'Error sending data to SFMTA'
+			send_error_email(email_body, email_subject)
+			LAST_ERROR_EMAIL_TIME = current_error_time
+			logging.error('Error email sent at ' + str(current_error_time))
+			return "Failure"
+# end push_vehicle_data
+
+
+
 # unpacks the list passed to this function to arguments, and calls function
 # Convert `f([1,2])` to `f(1,2)` call
 def push_vehicle_data_star(vehicle_data):
@@ -355,51 +391,8 @@ def push_all_vehicle_data(current_time):
 
 
 
-# Push data for a specific vehicle to SFMTA
-def push_vehicle_data(vehicle_id, current_time):
-	# Pull location data for vehicle_id at current_time and send to SFMTA
-
-	sfmta_payload = OrderedDict()
-
-	sfmta_payload['TechProviderId'] = int(os.environ['SFMTA_TECH_PROVIDER_ID'])
-	sfmta_payload['ShuttleCompanyId'] = os.environ['SFMTA_SHUTTLE_COMPANY_ID']
-	sfmta_payload['VehiclePlacardNum'] = placards[vehicle_id]
-	sfmta_payload['LicensePlateNum'] = license_plates[vehicle_id]
-
-	if(vehicle_onTrip[vehicle_id] == True):
-		vehicle_status = 1
-		stop_id = 9999
-	else:
-		vehicle_status = 2
-		stop_id = find_stop_id(vehicle_lat[vehicle_id], vehicle_long[vehicle_id])
 
 
-	sfmta_payload['StopId'] = stop_id
-	sfmta_payload['VehicleStatus'] = vehicle_status
-
-	sfmta_payload['LocationLatitude'] = vehicle_lat[vehicle_id]
-	sfmta_payload['LocationLongitude'] = vehicle_long[vehicle_id]
-	sfmta_payload['TimeStampLocal'] = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(current_time))
-
-	sfmta_payload_json = json.dumps(sfmta_payload)
-
-	sfmta_telemetry_url = SFMTA_URL + '/Telemetry/'
-
-	headers = {'content-type': 'application/json'}
-
-	r = requests.post(sfmta_telemetry_url, data = sfmta_payload_json, auth= (os.environ['SFMTA_USERNAME'], os.environ['SFMTA_PASSWORD']), headers = headers )
-	
-	if r.status_code != 200:
-		print 'Error pushing data to SFMTA for vehicle = ' + str(vehicle_id)
-		print r.text
-		print 'Continuing loop'
-	else:
-		if r.json()['Success'] != 'True':
-			print 'Error pushing data to SFMTA for vehicle = ' + str(vehicle_id)
-			print r.json()
-			print 'Continuing loop'
-
-	return
 
 # Infinite loop that pulls & pushes data every 5 seconds - this is called once in a cron job at a specific time (when system is activated)
 # If any errors are generated, emails are sent to Samsara
