@@ -201,6 +201,38 @@ def get_sfmta_stops():
 
 
 
+# Check if a location is near one of the SFMTA AllowedStops - if yes, return the stop ID, else return 9999
+def find_stop_id(stop_lat, stop_long):
+	try:
+		allowed_stops_object = s3.Object(SAMSARA_SFMTA_S3,'allowed_stops.json')
+		allowed_stops_json = json.loads(allowed_stops_object.get()['Body'].read().decode('utf-8'))
+
+		closest_stop_id = 9999
+		min_distance = 99999
+
+		for stop in allowed_stops_json['Stops']['Stop']:
+			current_stop_id = stop['StopId']
+			current_stop_lat = stop['StopLocationLatitude']
+			current_stop_long = stop['StopLocationLongitude']
+
+			curr_distance = distance(current_stop_lat,current_stop_long,stop_lat,stop_long)
+
+			if(curr_distance < min_distance):
+				min_distance = curr_distance
+				closest_stop_id = current_stop_id
+
+		if (min_distance <= DISTANCE_THRESHOLD ):
+			stop_id = closest_stop_id
+		else:
+			stop_id = 9999
+
+		return stop_id
+	except Exception as e:
+		return "Error loading data from S3 bucket\n" + str(e)
+# end find_stop_id
+
+
+
 # Get all vehicle telematics data from Samsara
 def get_all_vehicle_data():
 
@@ -244,31 +276,6 @@ def push_vehicle_data_star(vehicle_data):
 	#"""Convert `f([1,2])` to `f(1,2)` call."""
 	return push_vehicle_data(*vehicle_data)
 
-# Check if a location is near one of the SFMTA AllowedStops - if yes, return the stop ID, else return 9999
-def find_stop_id(stop_lat, stop_long):
-	allowed_stops_object = s3.Object(SAMSARA_SFMTA_S3,'allowed_stops.json')
-	allowed_stops_json = json.loads(allowed_stops_object.get()['Body'].read().decode('utf-8'))
-
-	closest_stop_id = 9999
-	min_distance = 99999
-
-	for stop in allowed_stops_json['Stops']['Stop']:
-		current_stop_id = stop['StopId']
-		current_stop_lat = stop['StopLocationLatitude']
-		current_stop_long = stop['StopLocationLongitude']
-
-		curr_distance = distance(current_stop_lat,current_stop_long,stop_lat,stop_long)
-
-		if(curr_distance < min_distance):
-			min_distance = curr_distance
-			closest_stop_id = current_stop_id
-
-	if (min_distance <= DISTANCE_THRESHOLD ):
-		stop_id = closest_stop_id
-	else:
-		stop_id = 9999
-
-	return stop_id
 
 # Push data for a specific vehicle to SFMTA
 def push_vehicle_data(vehicle_id, current_time):
