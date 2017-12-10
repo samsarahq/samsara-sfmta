@@ -1,17 +1,49 @@
-from flask import Flask, render_template, request, url_for, redirect
-import os
-import json, urllib
-import smtplib
-import sys, traceback
-import time
-import requests
-import math
-from math import radians, cos, sin, asin, sqrt, atan2
-from collections import OrderedDict
-from multiprocessing.dummy import Pool as ThreadPool 
-import itertools
+#! /bin/python
+#
+# --- Samsara // SFMTA integration ---
+#
+# Contact support@samsara.com with any issues or questions
+#
+#
+# Notes on logging:
+# - Implemented logging using Python's logging module
+# - Info level messages are logged for most function entrances and exits
+# - Did not implement these messages for functions that are called in the the ThreadPool
+#
+# Notes on exception handling
+# - API requests are wrapped in try/catch blocks
+# - any exception that occurs is logged as a warning
+# - in the event of an exception we retry the request for MAX_RETRIES attempts
+# - in the event we reach MAX_RETRIES, an error email is sent, and we log as an error
+#
+# Notes on error emails
+# - error emails are sent via the parameters set in the following environment variables
+# --- SFMTA_ERROR_FROM_EMAIL, SFMTA_ERROR_TO_EMAIL, SFMTA_ERROR_FROM_PASSWORD
+# - error emails are sent at most once for every ERROR_EMAIL_DELAY
+# --- this is to avoid repeated emails in the case of a persistent failure
+
+##############################
+#
+#         Imports
+#
+##############################
 
 import boto3
+from collections import OrderedDict
+from flask import Flask, render_template, request, url_for, redirect
+import itertools
+import json
+import logging
+import math
+from math import radians, cos, sin, asin, sqrt, atan2
+from multiprocessing.dummy import Pool as ThreadPool 
+import os
+import requests
+import smtplib
+import sys
+import time
+import traceback
+import urllib
 
 application = Flask(__name__)
 
