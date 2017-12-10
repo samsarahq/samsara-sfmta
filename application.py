@@ -233,31 +233,61 @@ def find_stop_id(stop_lat, stop_long):
 
 
 
-# Get all vehicle telematics data from Samsara
+##############################
+#
+#   Samsara API Functions
+#
+##############################
+
+# get all vehicle telematics data from Samsara
 def get_all_vehicle_data():
+	logging.info("Starting get_all_vehicle_data")
 
 	get_vehicle_details(VEHICLE_SHEETS_JSON_URL)
 
 	group_payload = { "groupId" : int(os.environ['SAMSARA_SFMTA_GROUP_ID']) }
 
-	r = requests.post(SAMSARA_LOCATIONS_URL, data = json.dumps(group_payload))
+	# attempt to pull data from Samsara API for maximum of MAX_RETRIES attempts
+	local_retries = MAX_RETRIES
+	while local_retries > 0:
+		try:
+			r = requests.post(SAMSARA_LOCATIONS_URL, data = json.dumps(group_payload))
 
-	if r.status_code != 200:
-		print 'Samsara API returned error - ' + str(r.status_code)
-		print r.text
-		print 'Continuing loop'
+			# raise an exception if we get a bad HTTP response
+			r.raise_for_status()
 
-	else:
+			locations_json = r.json()
 
-		locations_json = r.json()
+			for vehicle in locations_json['vehicles']:
+				vehicle_id = str(vehicle['id']).decode("utf-8")
+				vehicle_lat[vehicle_id] = vehicle['latitude']
+				vehicle_long[vehicle_id] = vehicle['longitude']
+				vehicle_onTrip[vehicle_id] = vehicle['onTrip']
 
-		for vehicle in locations_json['vehicles']:
-			vehicle_id = str(vehicle['id']).decode("utf-8")
-			vehicle_lat[vehicle_id] = vehicle['latitude']
-			vehicle_long[vehicle_id] = vehicle['longitude']
-			vehicle_onTrip[vehicle_id] = vehicle['onTrip']
+			logging.info("Finished get_all_vehicle_data")
+			return "Success"
 
-	return
+		except Exception as e:
+			logging.warning('Error getting data from Samsara API -- ' + str(e))
+			logging.warning('Retrying request, %s retries remaining', local_retries)
+			local_retries -= 1
+
+	# confirm that we have used MAX_RETRIES attempts
+	if local_retries == 0:
+		current_error_time = time.time()
+		global LAST_ERROR_EMAIL_TIME
+
+		# send error email if more than 2 hours has passed since last error email
+		if (current_error_time - LAST_ERROR_EMAIL_TIME) > ERROR_EMAIL_DELAY:
+			email_body = 'There was an error pulling data from Samsara API - please check logs\n\n'
+			email_subject = 'Error sending data to SFMTA'
+			send_error_email(email_body, email_subject)
+			LAST_ERROR_EMAIL_TIME = current_error_time
+			logging.error('Error email sent at ' + str(current_error_time))
+		return "Failure"
+# end get_all_vehicle_data
+
+
 
 # Push all vehicle data to SFMTA
 def push_all_vehicle_data(current_time):
