@@ -97,6 +97,14 @@ vehicle_timestamp_ms = {}
 #
 ##############################
 
+#Healthcheck URL for AWS
+@application.route('/admin/healthcheck')
+def healthcheck():
+    return "Hello World!" 
+# end healthcheck
+
+
+
 # Great Circle Distance between two lat/longs
 def distance(origin_lat, origin_long, dest_lat, dest_long):
 	radius = 6371 * 1000 # meters
@@ -118,29 +126,41 @@ def distance(origin_lat, origin_long, dest_lat, dest_long):
 	d = radius * c
 
 	return d
+# end distance
+
 
 
 # Gets vehicle info from a Google Sheet, and updates global variables
 def get_vehicle_details(url):
-	response = urllib.urlopen(url)
+	logging.info("Starting get_vehicle_details")
+	try:
+		response = urllib.urlopen(url)
 
-	if response.getcode() != 200:
-		print 'Google Sheet returned error - ' + str(response.getcode())
-		print response.read()
-		print 'Continuing loop'
+		# there should be a function like r.raise_for_status in the urllib module
+		if response.getcode() != 200:
+			print 'Google Sheet returned error - ' + str(response.getcode())
+			print response.read()
+			print 'Continuing loop'
 
-	else:
-		json_data = json.loads(response.read())
+		else:
+			json_data = json.loads(response.read())
 
-		vehicle_ids.clear()
+			vehicle_ids.clear()
 
-		for entry in json_data['feed']['entry']:
-			vehicle_id = entry['gsx$samsaradeviceid']['$t']
-			vehicle_ids.add(vehicle_id)
+			for entry in json_data['feed']['entry']:
+				vehicle_id = entry['gsx$samsaradeviceid']['$t']
+				vehicle_ids.add(vehicle_id)
 
-			placards[vehicle_id] = entry['gsx$vehicleplacardnumber']['$t']
-			license_plates[vehicle_id] = entry['gsx$licenseplatenumber']['$t']
-			vehicle_names[vehicle_id] = entry['gsx$vehicleidname']['$t']
+				placards[vehicle_id] = entry['gsx$vehicleplacardnumber']['$t']
+				license_plates[vehicle_id] = entry['gsx$licenseplatenumber']['$t']
+				vehicle_names[vehicle_id] = entry['gsx$vehicleidname']['$t']
+		logging.info("Finished get_vehicle_details")
+		return "Success"
+	except Exception as e:
+		return "Error reading vehicle details from Google Sheet\n" + str(e)
+# end get_vehicle_details
+
+
 
 # Pull SFMTA Allowed Stops and store in S3
 @application.route('/get_sfmta_stops', methods=['GET', 'POST'])
@@ -150,10 +170,7 @@ def get_sfmta_stops():
 	s3.Object(SAMSARA_SFMTA_S3,'allowed_stops.json').put(Body=r.text)
 	return "SFMTA Allowed Stops updated"
 
-#Healthcheck URL for AWS
-@application.route('/admin/healthcheck')
-def healthcheck():
-    return "Hello World!" 
+
 
 # Get all vehicle telematics data from Samsara
 def get_all_vehicle_data():
