@@ -289,22 +289,70 @@ def get_all_vehicle_data():
 
 
 
+##############################
+#
+#    SFMTA API Functions
+#
+##############################
+
+# build the payload to send to sfmta for the given vehicle and time
+def build_sfmta_payload(vehicle_id, current_time):
+
+	sfmta_payload = OrderedDict()
+
+	sfmta_payload['TechProviderId'] = int(os.environ['SFMTA_TECH_PROVIDER_ID'])
+	sfmta_payload['ShuttleCompanyId'] = os.environ['SFMTA_SHUTTLE_COMPANY_ID']
+	sfmta_payload['VehiclePlacardNum'] = placards[vehicle_id]
+	sfmta_payload['LicensePlateNum'] = license_plates[vehicle_id]
+
+	if(vehicle_onTrip[vehicle_id] == True):
+		vehicle_status = 1
+		stop_id = 9999
+	else:
+		vehicle_status = 2
+		stop_id = find_stop_id_TESTING(vehicle_lat[vehicle_id], vehicle_long[vehicle_id])
+
+
+	sfmta_payload['StopId'] = stop_id
+	sfmta_payload['VehicleStatus'] = vehicle_status
+
+	sfmta_payload['LocationLatitude'] = vehicle_lat[vehicle_id]
+	sfmta_payload['LocationLongitude'] = vehicle_long[vehicle_id]
+	sfmta_payload['TimeStampLocal'] = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(current_time))
+
+	return sfmta_payload
+# end build_sfmta_payload
+
+
+
+# unpacks the list passed to this function to arguments, and calls function
+# Convert `f([1,2])` to `f(1,2)` call
+def push_vehicle_data_star(vehicle_data):
+	return push_vehicle_data(*vehicle_data)
+# end push_vehicle_data_star
+
+
+
 # Push all vehicle data to SFMTA
+#
+# creates one thread for each vehicle, push payload for each vehicle in parallel
 def push_all_vehicle_data(current_time):
+	logging.info('Starting push_all_vehicle_data')
 
 	num_vehicles = len(vehicle_ids)
 	pool = ThreadPool(num_vehicles)
 
+	logging.info('Mapping push_vehicle_data_star to each thread in the pool')
 	pool.map(push_vehicle_data_star, itertools.izip(vehicle_ids,itertools.repeat(current_time)))
+	logging.info('All threads finished executing push_vehicle_data')
 
 	pool.close()
 	pool.join()
 
+	logging.info('Finished push_all_vehicle_data')
 	return
+# end push_all_vehicle_data
 
-def push_vehicle_data_star(vehicle_data):
-	#"""Convert `f([1,2])` to `f(1,2)` call."""
-	return push_vehicle_data(*vehicle_data)
 
 
 # Push data for a specific vehicle to SFMTA
