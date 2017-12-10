@@ -45,7 +45,22 @@ import time
 import traceback
 import urllib
 
+##############################
+#
+#     Config Variables
+#
+##############################
+
 application = Flask(__name__)
+
+VEHICLE_SHEETS_JSON_URL = 'https://spreadsheets.google.com/feeds/list/' + os.environ['SFMTA_VEHICLE_GOOGLE_SHEETS_KEY'] + '/od6/public/values?alt=json'
+SAMSARA_LOCATIONS_URL = 'https://api.samsara.com/v1/fleet/locations?access_token=' + os.environ['SAMSARA_SFMTA_API_TOKEN']
+FREQUENCY = 5				# SFMTA requires GPS ping frequency of once every 5 seconds
+DISTANCE_THRESHOLD = 50		# Consider vehicle is at a SFMTA Allowed Stop if less than 50 meters away from it
+MAX_RETRIES = 10			# number of times to retry an action that results in an exception
+LAST_ERROR_EMAIL_TIME = 0	# initial time value to update when first error email is sent
+ERROR_EMAIL_DELAY = 7200	# send an error email maximum of once every two hours
+SAMSARA_SFMTA_S3 = os.environ['SAMSARA_SFMTA_S3_BUCKET']
 
 if 'SFMTA_DEBUG' in os.environ and os.environ['SFMTA_DEBUG'] == '1':
 	application.debug = True
@@ -53,17 +68,12 @@ if 'SFMTA_DEBUG' in os.environ and os.environ['SFMTA_DEBUG'] == '1':
 else:
 	SFMTA_URL = 'https://services.sfmta.com/shuttle/api'
 
+# set the logging level
+logging.basicConfig(filename = "sfmta.log", 
+					level = logging.DEBUG,
+					format="%(asctime)s:%(levelname)s:%(message)s")
+
 s3 = boto3.resource('s3', region_name = 'us-west-2')
-
-##############################
-# Config variables
-##############################
-
-VEHICLE_SHEETS_JSON_URL = 'https://spreadsheets.google.com/feeds/list/' + os.environ['SFMTA_VEHICLE_GOOGLE_SHEETS_KEY'] + '/od6/public/values?alt=json'
-SAMSARA_LOCATIONS_URL = 'https://api.samsara.com/v1/fleet/locations?access_token=' + os.environ['SAMSARA_SFMTA_API_TOKEN']
-FREQUENCY = 5 # SFMTA requires GPS ping frequency of once every 5 seconds
-DISTANCE_THRESHOLD = 50 # Consider vehicle is at a SFMTA Allowed Stop if less than 50 meters away from it
-SAMSARA_SFMTA_S3 = os.environ['SAMSARA_SFMTA_S3_BUCKET']
 
 ##############################
 # Global variables
