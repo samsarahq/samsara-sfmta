@@ -100,7 +100,7 @@ vehicle_timestamp_ms = {}
 #Healthcheck URL for AWS
 @application.route('/admin/healthcheck')
 def healthcheck():
-    return "Hello World!" 
+	return "Hello World!" 
 # end healthcheck
 
 
@@ -121,7 +121,7 @@ def distance(origin_lat, origin_long, dest_lat, dest_long):
 	dlat = radians(lat2-lat1)
 	dlon = radians(lon2-lon1)
 	a = sin(dlat/2) * sin(dlat/2) + cos(radians(lat1)) \
-	    * cos(radians(lat2)) * sin(dlon/2) * sin(dlon/2)
+		* cos(radians(lat2)) * sin(dlon/2) * sin(dlon/2)
 	c = 2 * atan2(sqrt(a), sqrt(1-a))
 	d = radius * c
 
@@ -391,74 +391,65 @@ def push_all_vehicle_data(current_time):
 
 
 
-
-
+##############################
+#
+#   Main Application Loop
+#
+##############################
 
 # Infinite loop that pulls & pushes data every 5 seconds - this is called once in a cron job at a specific time (when system is activated)
-# If any errors are generated, emails are sent to Samsara
+# If any errors are generated, emails are sent
 @application.route('/push_sfmta')
 def push_all_data():
-	try:
+	logging.info('Starting push_all_data')
 
-		time.tzset()
-
-		print 'Started push to SFMTA'
-
-		while True:
-			
+	time.tzset()
+	
+	while True:
+		try:
 			start_time = time.time()
 			current_time = start_time
+			logging.info("Processing loop for time = " + str(current_time))
 
-			# print 'Processing loop for time = ' + str(current_time)
-
-			get_all_vehicle_data()
+			# if the function fails then skip to next iteration of the loop
+			if get_all_vehicle_data() != 'Success':
+				continue
 
 			samsara_api_time = time.time() - start_time
-
-			# print 'Samsara API time taken = '+ str(samsara_api_time)
+			logging.info("Samsara API time taken = "+ str(samsara_api_time))
 
 			push_all_vehicle_data(current_time)
 
 			end_time = time.time()
+			time_spent = end_time - start_time
+			logging.info("Total time taken for this iteration = " + str(time_spent))
+			logging.info("Completed processing loop for time = " + str(current_time))
 
-			timeSpent = end_time - start_time
-			# print 'Total time taken = '+ str(timeSpent)
-			timeToWait = FREQUENCY - timeSpent
+			time_to_wait = FREQUENCY - time_spent
 
-			if timeToWait >= 0:
-				time.sleep(timeToWait)
+			if time_to_wait >= 0:
+				time.sleep(time_to_wait)
 
-			# print 'Completed processing loop for time = ' + str(current_time)
+		# handle any other exceptions that may be generated
+		# in the event of an exception continue to the next iteration of the loop
+		except Exception as e:
+			current_error_time = time.time()
+			global LAST_ERROR_EMAIL_TIME
 
-		return "Success"
-
-	except:
-
-		email_body = "There was an error sending data to SFMTA - please check logs\n\n"
-		email_subject = "Error sending data to SFMTA"
-		formatted_lines = traceback.format_exc().splitlines()
-		for j in formatted_lines:
-			email_body += j
-		message = 'Subject: %s\n\n%s' % (email_subject, email_body)
-
-		from_email = os.environ['SFMTA_ERROR_FROM_EMAIL']
-		to_email = os.environ['SFMTA_ERROR_TO_EMAIL']
-
-		s = smtplib.SMTP('smtp.gmail.com')
-		s.set_debuglevel(1) 
-		s.ehlo() 
-		s.starttls() 
-		s.login(from_email, os.environ['SFMTA_ERROR_FROM_PASSWORD'])
-
-		# Send email and close the connection
-		s.sendmail(from_email, to_email, message)
-		s.quit()
-
-		return "There was an error sending data to SFMTA"
+			# send error email if more than 2 hours has passed since last error email
+			if (current_error_time - LAST_ERROR_EMAIL_TIME) > ERROR_EMAIL_DELAY:
+				email_body = "There was an error sending data to SFMTA - please check logs\n\n"
+				email_subject = "Error sending data to SFMTA"
+				send_error_email(email_body, email_subject)
+				LAST_ERROR_EMAIL_TIME = current_error_time
+				logging.error('Error email sent at ' + str(current_error_time))
+			continue
+# end push_all_data
+		
 
 
 if __name__ == '__main__':
-        if 'SFMTA_LOCALHOST' in os.environ and os.environ['SFMTA_LOCALHOST'] == '1':
-                application.run(use_reloader=False)
-        else:
-                application.run('0.0.0.0')
+	if 'SFMTA_LOCALHOST' in os.environ and os.environ['SFMTA_LOCALHOST'] == '1':
+		application.run(use_reloader=False)
+	else:
+		application.run('0.0.0.0')
