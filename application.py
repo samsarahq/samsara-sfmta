@@ -162,6 +162,31 @@ def get_vehicle_details(url):
 
 
 
+# sends an email with the given body and subject
+# to/from email addresses are defined as environment variables
+def send_error_email(email_body, email_subject):
+	logging.info("Starting send_error_email")
+	formatted_lines = traceback.format_exc().splitlines()
+	for j in formatted_lines:
+		email_body += j
+	message = 'Subject: %s\n\n%s' % (email_subject, email_body)
+
+	from_email = os.environ['SFMTA_ERROR_FROM_EMAIL']
+	to_email = os.environ['SFMTA_ERROR_TO_EMAIL']
+
+	s = smtplib.SMTP('smtp.gmail.com', 587)
+	s.ehlo() 
+	s.starttls() 
+	s.login(from_email, os.environ['SFMTA_ERROR_FROM_PASSWORD'])
+
+	# Send email and close the connection
+	s.sendmail(from_email, to_email, message)
+	s.quit()
+	logging.info("Finished send_error_email")
+# end send_error_email
+
+
+
 # Pull SFMTA Allowed Stops and store in S3
 @application.route('/get_sfmta_stops', methods=['GET', 'POST'])
 def get_sfmta_stops():
