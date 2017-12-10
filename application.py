@@ -76,7 +76,9 @@ logging.basicConfig(filename = "sfmta.log",
 s3 = boto3.resource('s3', region_name = 'us-west-2')
 
 ##############################
-# Global variables
+#
+#     Global Variables
+#
 ##############################
 
 vehicle_ids = set()
@@ -90,7 +92,9 @@ vehicle_onTrip = {}
 vehicle_timestamp_ms = {}
 
 ##############################
-# Helper functions
+#
+#     Helper Functions
+#
 ##############################
 
 # Great Circle Distance between two lat/longs
