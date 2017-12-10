@@ -191,9 +191,13 @@ def send_error_email(email_body, email_subject):
 @application.route('/get_sfmta_stops', methods=['GET', 'POST'])
 def get_sfmta_stops():
 	headers = {'accept': 'application/json', 'content-type': 'application/json'}
-	r = requests.get(SFMTA_URL+'/AllowedStops', headers = headers)
-	s3.Object(SAMSARA_SFMTA_S3,'allowed_stops.json').put(Body=r.text)
-	return "SFMTA Allowed Stops updated"
+	try:
+		r = requests.get(SFMTA_URL+'/AllowedStops', headers = headers)
+		s3.Object(SAMSARA_SFMTA_S3,'allowed_stops.json').put(Body=r.text)
+		return "SFMTA Allowed Stops updated"
+	except Exception as e:
+		return "Error updating SFMTA Allowed Stops\n" + str(e)
+# end get_sfmta_stops
 
 
 
