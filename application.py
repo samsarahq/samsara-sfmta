@@ -310,7 +310,7 @@ def build_sfmta_payload(vehicle_id, current_time):
 		stop_id = 9999
 	else:
 		vehicle_status = 2
-		stop_id = find_stop_id_TESTING(vehicle_lat[vehicle_id], vehicle_long[vehicle_id])
+		stop_id = find_stop_id(vehicle_lat[vehicle_id], vehicle_long[vehicle_id])
 
 
 	sfmta_payload['StopId'] = stop_id
