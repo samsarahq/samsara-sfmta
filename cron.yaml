@@ -1,5 +1,0 @@
-version: 1
-cron:
- - name: "update_sfmta_stops_every_day"
-   url: "/get_sfmta_stops"
-   schedule: "0 8 * * *"
