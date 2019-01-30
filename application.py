@@ -60,7 +60,7 @@ vehicle_long = {}
 vehicle_onTrip = {}
 vehicle_timestamp_ms = {}
 
-global sfmta_allowed_stops
+sfmta_allowed_stops = None
 
 ##############################
 #     Helper Functions
@@ -149,6 +149,8 @@ def find_stop_id(stop_lat, stop_long):
 	try:
 		closest_stop_id = 9999
 		min_distance = 99999
+		global sfmta_allowed_stops
+		if sfmta_allowed_stops is None: sfmta_allowed_stops = get_sfmta_stops()
 		for stop in sfmta_allowed_stops:
 			current_stop_id = stop['StopId']
 			current_stop_lat = stop['StopLocationLatitude']
